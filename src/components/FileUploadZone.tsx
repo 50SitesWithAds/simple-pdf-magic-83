@@ -17,10 +17,9 @@ export const FileUploadZone = ({ onFileSelect }: FileUploadZoneProps) => {
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: {
-      'application/pdf': ['.pdf'],
-      'image/*': ['.png', '.jpg', '.jpeg'],
       'application/msword': ['.doc'],
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
+      'image/*': ['.png', '.jpg', '.jpeg'],
     },
     multiple: false,
   });
@@ -44,7 +43,7 @@ export const FileUploadZone = ({ onFileSelect }: FileUploadZoneProps) => {
         )}
       </p>
       <p className="mt-2 text-sm text-muted-foreground">
-        Supports PDF, Word documents, and images
+        Supports Word documents and images
       </p>
     </div>
   );
