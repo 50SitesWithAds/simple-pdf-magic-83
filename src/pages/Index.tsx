@@ -4,6 +4,7 @@ import { FilePreview } from '@/components/FilePreview';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { Download } from 'lucide-react';
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const Index = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -27,8 +28,8 @@ const Index = () => {
     setConvertedFile(URL.createObjectURL(selectedFile));
     
     toast({
-      title: "Conversion complete!",
-      description: "Your file has been converted successfully.",
+      title: "Demo conversion complete",
+      description: "Note: This is a demo version. Actual PDF conversion requires backend integration.",
     });
     setConverting(false);
   };
@@ -44,8 +45,8 @@ const Index = () => {
     document.body.removeChild(link);
     
     toast({
-      title: "Download started!",
-      description: "Your converted file is being downloaded.",
+      title: "Demo download started",
+      description: "Note: This is a demo version. The file is not actually converted to PDF.",
     });
   };
 
@@ -53,9 +54,16 @@ const Index = () => {
     <div className="min-h-screen py-12 bg-gradient-to-b from-white to-gray-50">
       <div className="container max-w-3xl px-4 mx-auto">
         <h1 className="mb-2 text-4xl font-bold text-center">PDF Converter</h1>
-        <p className="mb-8 text-center text-muted-foreground">
+        <p className="mb-4 text-center text-muted-foreground">
           Convert your documents to PDF format in seconds
         </p>
+
+        <Alert className="mb-8">
+          <AlertDescription>
+            This is a demo version. Currently, files are not actually converted to PDF format. 
+            Backend integration would be required for actual file conversion functionality.
+          </AlertDescription>
+        </Alert>
 
         <div className="p-8 bg-white border rounded-xl shadow-sm">
           {!selectedFile ? (
