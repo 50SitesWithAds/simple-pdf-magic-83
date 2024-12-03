@@ -24,7 +24,7 @@ const Index = () => {
     
     // Create a new PDF document
     const pdfDoc = await PDFDocument.create();
-    const page = pdfDoc.addPage();
+    let page = pdfDoc.addPage();  // Changed from const to let
     const font = await pdfDoc.embedFont('Helvetica');
     
     try {
