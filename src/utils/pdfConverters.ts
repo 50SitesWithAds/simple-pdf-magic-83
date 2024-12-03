@@ -1,8 +1,10 @@
-import { PDFDocument } from 'pdf-lib';
+import { PDFDocument, StandardFonts } from 'pdf-lib';
 import mammoth from 'mammoth';
 
 const PAGE_MARGIN = 50;
-const FONT_SIZE = 11;
+const BASE_FONT_SIZE = 11;
+const TITLE_FONT_SIZE = 24;
+const SUBTITLE_FONT_SIZE = 18;
 const LINE_HEIGHT = 14;
 const MAX_LINE_WIDTH = 500;
 
@@ -14,43 +16,63 @@ export const convertWordToPdf = async (file: File): Promise<ArrayBuffer> => {
   try {
     // Extract text with formatting from Word document
     console.log('Extracting text with mammoth...');
-    const result = await mammoth.extractRawText({ arrayBuffer });
-    const textContent = result.value;
-    console.log('Text extracted successfully:', textContent.substring(0, 100) + '...');
+    const result = await mammoth.convertToHtml({ arrayBuffer });
+    const htmlContent = result.value;
+    console.log('HTML extracted successfully:', htmlContent.substring(0, 100) + '...');
 
     // Create PDF document
     console.log('Creating PDF document...');
     const pdfDoc = await PDFDocument.create();
     let page = pdfDoc.addPage([595, 842]); // A4 size in points
-    const font = await pdfDoc.embedFont('Helvetica');
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
     console.log('PDF document created with initial page');
 
-    // Split content into paragraphs
-    const paragraphs = textContent.split('\n\n');
+    // Parse HTML content
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(htmlContent, 'text/html');
+    const elements = doc.body.children;
     let y = page.getHeight() - PAGE_MARGIN;
 
-    console.log('Processing', paragraphs.length, 'paragraphs');
-    for (const paragraph of paragraphs) {
-      if (!paragraph.trim()) continue;
+    console.log('Processing HTML elements');
+    for (const element of Array.from(elements)) {
+      const tagName = element.tagName.toLowerCase();
+      const text = element.textContent?.trim() || '';
+      if (!text) continue;
+
+      // Determine font size and font based on element type
+      let fontSize = BASE_FONT_SIZE;
+      let currentFont = font;
+      let lineSpacing = LINE_HEIGHT;
+
+      if (tagName === 'h1') {
+        fontSize = TITLE_FONT_SIZE;
+        currentFont = boldFont;
+        lineSpacing = LINE_HEIGHT * 2;
+      } else if (tagName === 'h2') {
+        fontSize = SUBTITLE_FONT_SIZE;
+        currentFont = boldFont;
+        lineSpacing = LINE_HEIGHT * 1.5;
+      }
 
       // Word wrap text to fit page width
-      const words = paragraph.split(' ');
+      const words = text.split(' ');
       let currentLine = '';
       
       for (let i = 0; i < words.length; i++) {
         const word = words[i];
         const testLine = currentLine + (currentLine ? ' ' : '') + word;
-        const width = font.widthOfTextAtSize(testLine, FONT_SIZE);
+        const width = currentFont.widthOfTextAtSize(testLine, fontSize);
 
         if (width > MAX_LINE_WIDTH && currentLine) {
           // Draw current line and move to next
           page.drawText(currentLine, {
             x: PAGE_MARGIN,
             y,
-            size: FONT_SIZE,
-            font,
+            size: fontSize,
+            font: currentFont,
           });
-          y -= LINE_HEIGHT;
+          y -= lineSpacing;
           currentLine = word;
 
           // Check if we need a new page
@@ -69,10 +91,10 @@ export const convertWordToPdf = async (file: File): Promise<ArrayBuffer> => {
         page.drawText(currentLine, {
           x: PAGE_MARGIN,
           y,
-          size: FONT_SIZE,
-          font,
+          size: fontSize,
+          font: currentFont,
         });
-        y -= LINE_HEIGHT * 1.5; // Add extra space after paragraph
+        y -= lineSpacing * 1.5; // Add extra space after paragraph
       }
 
       // Add new page if needed
