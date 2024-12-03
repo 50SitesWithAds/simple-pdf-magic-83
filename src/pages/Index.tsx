@@ -2,10 +2,10 @@ import React, { useState } from 'react';
 import { FileUploadZone } from '@/components/FileUploadZone';
 import { FilePreview } from '@/components/FilePreview';
 import { Button } from '@/components/ui/button';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
 import { Download } from 'lucide-react';
 import { PDFDocument } from 'pdf-lib';
-import { Document } from 'docx';
+import { Document, Packer } from 'docx';
 
 const Index = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -20,23 +20,33 @@ const Index = () => {
 
   const convertWordToPdf = async (file: File): Promise<ArrayBuffer> => {
     const arrayBuffer = await file.arrayBuffer();
-    const doc = new Document(arrayBuffer);
+    
+    // Create a new PDF document
     const pdfDoc = await PDFDocument.create();
     const page = pdfDoc.addPage();
-    
-    // Extract text content from Word document
-    const text = doc.getText();
-    const fontSize = 12;
     const font = await pdfDoc.embedFont('Helvetica');
     
-    page.drawText(text, {
-      x: 50,
-      y: page.getHeight() - 50,
-      size: fontSize,
-      font,
-    });
-    
-    return await pdfDoc.save();
+    try {
+      // Load the Word document
+      const doc = new Document(arrayBuffer);
+      
+      // Extract text using Packer
+      const buffer = await Packer.toBase64String(doc);
+      const decodedBuffer = Buffer.from(buffer, 'base64').toString('utf-8');
+      
+      // Draw text on PDF
+      page.drawText(decodedBuffer || 'No content found', {
+        x: 50,
+        y: page.getHeight() - 50,
+        size: 12,
+        font,
+      });
+      
+      return await pdfDoc.save();
+    } catch (error) {
+      console.error('Error converting Word document:', error);
+      throw new Error('Failed to convert Word document');
+    }
   };
 
   const convertImageToPdf = async (file: File): Promise<ArrayBuffer> => {
@@ -56,7 +66,6 @@ const Index = () => {
     const pageWidth = page.getWidth();
     const pageHeight = page.getHeight();
     
-    // Calculate scaling to fit the page while maintaining aspect ratio
     const scale = Math.min(
       pageWidth / width,
       pageHeight / height
