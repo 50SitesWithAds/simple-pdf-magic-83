@@ -4,7 +4,8 @@ import { FilePreview } from '@/components/FilePreview';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { Download } from 'lucide-react';
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { PDFDocument } from 'pdf-lib';
+import { Document } from 'docx';
 
 const Index = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -17,21 +18,89 @@ const Index = () => {
     setConvertedFile(null);
   };
 
+  const convertWordToPdf = async (file: File): Promise<ArrayBuffer> => {
+    const arrayBuffer = await file.arrayBuffer();
+    const doc = new Document(arrayBuffer);
+    const pdfDoc = await PDFDocument.create();
+    const page = pdfDoc.addPage();
+    
+    // Extract text content from Word document
+    const text = doc.getText();
+    const fontSize = 12;
+    const font = await pdfDoc.embedFont('Helvetica');
+    
+    page.drawText(text, {
+      x: 50,
+      y: page.getHeight() - 50,
+      size: fontSize,
+      font,
+    });
+    
+    return await pdfDoc.save();
+  };
+
+  const convertImageToPdf = async (file: File): Promise<ArrayBuffer> => {
+    const pdfDoc = await PDFDocument.create();
+    const page = pdfDoc.addPage();
+    
+    const imageBytes = await file.arrayBuffer();
+    let image;
+    
+    if (file.type.includes('png')) {
+      image = await pdfDoc.embedPng(imageBytes);
+    } else {
+      image = await pdfDoc.embedJpg(imageBytes);
+    }
+    
+    const { width, height } = image.scale(1);
+    const pageWidth = page.getWidth();
+    const pageHeight = page.getHeight();
+    
+    // Calculate scaling to fit the page while maintaining aspect ratio
+    const scale = Math.min(
+      pageWidth / width,
+      pageHeight / height
+    );
+    
+    page.drawImage(image, {
+      x: (pageWidth - width * scale) / 2,
+      y: (pageHeight - height * scale) / 2,
+      width: width * scale,
+      height: height * scale,
+    });
+    
+    return await pdfDoc.save();
+  };
+
   const handleConvert = async () => {
     if (!selectedFile) return;
 
-    setConverting(true);
-    // Simulate conversion process
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    // In a real implementation, this would be the URL or blob from the server
-    setConvertedFile(URL.createObjectURL(selectedFile));
-    
-    toast({
-      title: "Demo conversion complete",
-      description: "Note: This is a demo version. Actual PDF conversion requires backend integration.",
-    });
-    setConverting(false);
+    try {
+      setConverting(true);
+      let pdfBytes: ArrayBuffer;
+
+      if (selectedFile.type.includes('word') || selectedFile.name.endsWith('.docx') || selectedFile.name.endsWith('.doc')) {
+        pdfBytes = await convertWordToPdf(selectedFile);
+      } else {
+        pdfBytes = await convertImageToPdf(selectedFile);
+      }
+
+      const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+      setConvertedFile(URL.createObjectURL(blob));
+      
+      toast({
+        title: "Conversion complete!",
+        description: "Your file has been converted to PDF successfully.",
+      });
+    } catch (error) {
+      toast({
+        title: "Conversion failed",
+        description: "There was an error converting your file. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setConverting(false);
+    }
   };
 
   const handleDownload = () => {
@@ -39,14 +108,14 @@ const Index = () => {
     
     const link = document.createElement('a');
     link.href = convertedFile;
-    link.download = `converted-${selectedFile?.name || 'document'}.pdf`;
+    link.download = `converted-${selectedFile?.name.split('.')[0]}.pdf`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     
     toast({
-      title: "Demo download started",
-      description: "Note: This is a demo version. The file is not actually converted to PDF.",
+      title: "Download started",
+      description: "Your PDF file is being downloaded.",
     });
   };
 
@@ -54,16 +123,9 @@ const Index = () => {
     <div className="min-h-screen py-12 bg-gradient-to-b from-white to-gray-50">
       <div className="container max-w-3xl px-4 mx-auto">
         <h1 className="mb-2 text-4xl font-bold text-center">PDF Converter</h1>
-        <p className="mb-4 text-center text-muted-foreground">
+        <p className="mb-8 text-center text-muted-foreground">
           Convert your documents to PDF format in seconds
         </p>
-
-        <Alert className="mb-8">
-          <AlertDescription>
-            This is a demo version. Currently, files are not actually converted to PDF format. 
-            Backend integration would be required for actual file conversion functionality.
-          </AlertDescription>
-        </Alert>
 
         <div className="p-8 bg-white border rounded-xl shadow-sm">
           {!selectedFile ? (
