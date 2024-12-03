@@ -6,6 +6,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Download } from 'lucide-react';
 import { PDFDocument } from 'pdf-lib';
 import { Document, Packer, Paragraph, TextRun } from 'docx';
+import mammoth from 'mammoth';
 
 const Index = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -27,31 +28,31 @@ const Index = () => {
     const font = await pdfDoc.embedFont('Helvetica');
     
     try {
-      // Create a simple document with placeholder text
-      const doc = new Document({
-        sections: [{
-          properties: {},
-          children: [
-            new Paragraph({
-              children: [
-                new TextRun("Converting document content...")
-              ],
-            }),
-          ],
-        }],
-      });
+      // Extract text from Word document using mammoth
+      const result = await mammoth.extractRawText({ arrayBuffer });
+      const textContent = result.value;
+
+      // Split text into lines and draw on PDF
+      const lines = textContent.split('\n');
+      let y = page.getHeight() - 50;
       
-      // Convert to buffer and extract text
-      const buffer = await Packer.toBuffer(doc);
-      const textContent = buffer.toString('utf-8');
-      
-      // Draw text on PDF
-      page.drawText(textContent || 'No content found', {
-        x: 50,
-        y: page.getHeight() - 50,
-        size: 12,
-        font,
-      });
+      for (const line of lines) {
+        if (line.trim()) {
+          page.drawText(line, {
+            x: 50,
+            y,
+            size: 12,
+            font,
+          });
+          y -= 20; // Move down for next line
+          
+          // Add new page if we run out of space
+          if (y < 50) {
+            page = pdfDoc.addPage();
+            y = page.getHeight() - 50;
+          }
+        }
+      }
       
       return await pdfDoc.save();
     } catch (error) {
