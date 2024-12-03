@@ -20,22 +20,29 @@ const Index = () => {
   };
 
   const convertWordToPdf = async (file: File): Promise<ArrayBuffer> => {
+    console.log('Starting Word to PDF conversion for file:', file.name);
     const arrayBuffer = await file.arrayBuffer();
-    
-    // Create a new PDF document
-    const pdfDoc = await PDFDocument.create();
-    let page = pdfDoc.addPage();  // Changed from const to let
-    const font = await pdfDoc.embedFont('Helvetica');
+    console.log('File loaded as ArrayBuffer');
     
     try {
-      // Extract text from Word document using mammoth
+      // Extract text from Word document using mammoth first
+      console.log('Extracting text with mammoth...');
       const result = await mammoth.extractRawText({ arrayBuffer });
       const textContent = result.value;
+      console.log('Text extracted successfully:', textContent.substring(0, 100) + '...');
+
+      // Create a new PDF document
+      console.log('Creating PDF document...');
+      const pdfDoc = await PDFDocument.create();
+      let page = pdfDoc.addPage();
+      const font = await pdfDoc.embedFont('Helvetica');
+      console.log('PDF document created with initial page');
 
       // Split text into lines and draw on PDF
       const lines = textContent.split('\n');
       let y = page.getHeight() - 50;
       
+      console.log('Processing', lines.length, 'lines of text');
       for (const line of lines) {
         if (line.trim()) {
           page.drawText(line, {
@@ -50,14 +57,20 @@ const Index = () => {
           if (y < 50) {
             page = pdfDoc.addPage();
             y = page.getHeight() - 50;
+            console.log('Added new page to PDF');
           }
         }
       }
       
+      console.log('Saving PDF...');
       return await pdfDoc.save();
     } catch (error) {
-      console.error('Error converting Word document:', error);
-      throw new Error('Failed to convert Word document');
+      console.error('Detailed error in Word to PDF conversion:', error);
+      if (error instanceof Error) {
+        console.error('Error message:', error.message);
+        console.error('Error stack:', error.stack);
+      }
+      throw new Error(`Failed to convert Word document: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
@@ -101,9 +114,13 @@ const Index = () => {
       let pdfBytes: ArrayBuffer;
 
       if (selectedFile.type.includes('word') || selectedFile.name.endsWith('.docx') || selectedFile.name.endsWith('.doc')) {
+        console.log('Starting Word document conversion...');
         pdfBytes = await convertWordToPdf(selectedFile);
+        console.log('Word conversion completed successfully');
       } else {
+        console.log('Starting image conversion...');
         pdfBytes = await convertImageToPdf(selectedFile);
+        console.log('Image conversion completed successfully');
       }
 
       const blob = new Blob([pdfBytes], { type: 'application/pdf' });
@@ -114,9 +131,10 @@ const Index = () => {
         description: "Your file has been converted to PDF successfully.",
       });
     } catch (error) {
+      console.error('Conversion error:', error);
       toast({
         title: "Conversion failed",
-        description: "There was an error converting your file. Please try again.",
+        description: error instanceof Error ? error.message : "There was an error converting your file. Please try again.",
         variant: "destructive",
       });
     } finally {
