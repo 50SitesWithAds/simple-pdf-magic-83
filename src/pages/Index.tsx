@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { Download } from 'lucide-react';
 import { PDFDocument } from 'pdf-lib';
-import { Document, Packer } from 'docx';
+import { Document, Packer, Paragraph, TextRun } from 'docx';
 
 const Index = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -27,21 +27,21 @@ const Index = () => {
     const font = await pdfDoc.embedFont('Helvetica');
     
     try {
-      // Create document from buffer
-      const uint8Array = new Uint8Array(arrayBuffer);
+      // Create a simple document with placeholder text
       const doc = new Document({
         sections: [{
           properties: {},
           children: [
-            {
-              type: 'paragraph',
-              children: [{ text: 'Converting document content...' }],
-            },
+            new Paragraph({
+              children: [
+                new TextRun("Converting document content...")
+              ],
+            }),
           ],
         }],
       });
       
-      // Extract text using Packer
+      // Convert to buffer and extract text
       const buffer = await Packer.toBuffer(doc);
       const textContent = buffer.toString('utf-8');
       
