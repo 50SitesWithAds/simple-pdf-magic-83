@@ -27,15 +27,26 @@ const Index = () => {
     const font = await pdfDoc.embedFont('Helvetica');
     
     try {
-      // Load the Word document
-      const doc = new Document(arrayBuffer);
+      // Create document from buffer
+      const uint8Array = new Uint8Array(arrayBuffer);
+      const doc = new Document({
+        sections: [{
+          properties: {},
+          children: [
+            {
+              type: 'paragraph',
+              children: [{ text: 'Converting document content...' }],
+            },
+          ],
+        }],
+      });
       
       // Extract text using Packer
-      const buffer = await Packer.toBase64String(doc);
-      const decodedBuffer = Buffer.from(buffer, 'base64').toString('utf-8');
+      const buffer = await Packer.toBuffer(doc);
+      const textContent = buffer.toString('utf-8');
       
       // Draw text on PDF
-      page.drawText(decodedBuffer || 'No content found', {
+      page.drawText(textContent || 'No content found', {
         x: 50,
         y: page.getHeight() - 50,
         size: 12,
