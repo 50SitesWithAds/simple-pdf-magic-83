@@ -1,12 +1,9 @@
 import React, { useState } from 'react';
 import { FileUploadZone } from '@/components/FileUploadZone';
 import { FilePreview } from '@/components/FilePreview';
-import { Button } from '@/components/ui/button';
+import { FileConverter } from '@/components/FileConverter';
 import { useToast } from '@/hooks/use-toast';
-import { Download } from 'lucide-react';
-import { PDFDocument } from 'pdf-lib';
-import { Document, Packer, Paragraph, TextRun } from 'docx';
-import mammoth from 'mammoth';
+import { convertWordToPdf, convertImageToPdf } from '@/utils/pdfConverters';
 
 const Index = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -17,93 +14,6 @@ const Index = () => {
   const handleFileSelect = (file: File) => {
     setSelectedFile(file);
     setConvertedFile(null);
-  };
-
-  const convertWordToPdf = async (file: File): Promise<ArrayBuffer> => {
-    console.log('Starting Word to PDF conversion for file:', file.name);
-    const arrayBuffer = await file.arrayBuffer();
-    console.log('File loaded as ArrayBuffer');
-    
-    try {
-      // Extract text from Word document using mammoth first
-      console.log('Extracting text with mammoth...');
-      const result = await mammoth.extractRawText({ arrayBuffer });
-      const textContent = result.value;
-      console.log('Text extracted successfully:', textContent.substring(0, 100) + '...');
-
-      // Create a new PDF document
-      console.log('Creating PDF document...');
-      const pdfDoc = await PDFDocument.create();
-      let page = pdfDoc.addPage();
-      const font = await pdfDoc.embedFont('Helvetica');
-      console.log('PDF document created with initial page');
-
-      // Split text into lines and draw on PDF
-      const lines = textContent.split('\n');
-      let y = page.getHeight() - 50;
-      
-      console.log('Processing', lines.length, 'lines of text');
-      for (const line of lines) {
-        if (line.trim()) {
-          page.drawText(line, {
-            x: 50,
-            y,
-            size: 12,
-            font,
-          });
-          y -= 20; // Move down for next line
-          
-          // Add new page if we run out of space
-          if (y < 50) {
-            page = pdfDoc.addPage();
-            y = page.getHeight() - 50;
-            console.log('Added new page to PDF');
-          }
-        }
-      }
-      
-      console.log('Saving PDF...');
-      return await pdfDoc.save();
-    } catch (error) {
-      console.error('Detailed error in Word to PDF conversion:', error);
-      if (error instanceof Error) {
-        console.error('Error message:', error.message);
-        console.error('Error stack:', error.stack);
-      }
-      throw new Error(`Failed to convert Word document: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-  };
-
-  const convertImageToPdf = async (file: File): Promise<ArrayBuffer> => {
-    const pdfDoc = await PDFDocument.create();
-    const page = pdfDoc.addPage();
-    
-    const imageBytes = await file.arrayBuffer();
-    let image;
-    
-    if (file.type.includes('png')) {
-      image = await pdfDoc.embedPng(imageBytes);
-    } else {
-      image = await pdfDoc.embedJpg(imageBytes);
-    }
-    
-    const { width, height } = image.scale(1);
-    const pageWidth = page.getWidth();
-    const pageHeight = page.getHeight();
-    
-    const scale = Math.min(
-      pageWidth / width,
-      pageHeight / height
-    );
-    
-    page.drawImage(image, {
-      x: (pageWidth - width * scale) / 2,
-      y: (pageHeight - height * scale) / 2,
-      width: width * scale,
-      height: height * scale,
-    });
-    
-    return await pdfDoc.save();
   };
 
   const handleConvert = async () => {
@@ -178,34 +88,12 @@ const Index = () => {
                   setConvertedFile(null);
                 }}
               />
-              <div className="flex justify-center gap-4 mt-6">
-                {!convertedFile ? (
-                  <Button
-                    size="lg"
-                    onClick={handleConvert}
-                    disabled={converting}
-                    className="gap-2"
-                  >
-                    {converting ? (
-                      "Converting..."
-                    ) : (
-                      <>
-                        <Download className="w-4 h-4" />
-                        Convert to PDF
-                      </>
-                    )}
-                  </Button>
-                ) : (
-                  <Button
-                    size="lg"
-                    onClick={handleDownload}
-                    className="gap-2"
-                  >
-                    <Download className="w-4 h-4" />
-                    Download PDF
-                  </Button>
-                )}
-              </div>
+              <FileConverter
+                converting={converting}
+                convertedFile={convertedFile}
+                onConvert={handleConvert}
+                onDownload={handleDownload}
+              />
             </div>
           )}
         </div>
